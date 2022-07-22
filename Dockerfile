@@ -111,8 +111,6 @@ RUN bundle install && \
 
 COPY . .
 
-RUN cp -r admin/app/assets/* app/assets/
-
 # precompile assets -- need to figure out min files needed to run this
 RUN bundle exec rails assets:precompile && \
   bundle exec rails tmp:clear && \
