@@ -28,52 +28,6 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
 # [Optional] Uncomment this line to install global node packages.
 # RUN su vscode -c "source /usr/local/share/nvm/nvm.sh && npm install -g <your-package-here>" 2>&1
 
-FROM base as static
-ENV BUNDLE_PATH='/app/vendor/bundle' \
-  BUNDLE_BIN='/app/vendor/bundle/bin'
-WORKDIR /app
-RUN chown vscode:vscode /app
-USER vscode
-
-# dependencies
-COPY --chown=vscode:vscode Gemfile* package.json ./
-# js packages less likely to change than gems
-# yarn packages get installed with asset:precompile
-# RUN yarn install && \
-#  yarn cache clean
-RUN bundle install && \
-  bundle package && \
-  find /usr/local/bundle/ -name "*.c" -delete && \
-  find /usr/local/bundle/ -name "*.o" -delete 
-
-# copy backend into app
-COPY --chown=vscode:vscode . .
-
-RUN bundle exec rails assets:precompile && \
-  yarn cache clean && \
-  rm -rf node_modules && \
-  # script to clean up the container a little
-  set -e; \
-  rm -rf admin;
-
-# prep the bootsnap cache just for the hell of it
-RUN bundle exec bootsnap precompile --gemfile app/ lib/
-
-# copy over backend and admin
-CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
-
-
-FROM base as devcontainer
-
-# [Optional] Uncomment this section to install additional OS packages.
-# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-#   && apt-get -y install --no-install-recommends inotify-tools
-
-# Set up devcontainer
-COPY .devcontainer/devcommands.sh ./scripts/devcommands.sh
-RUN ["chmod", "+x", "./scripts/devcommands.sh"]
-ENTRYPOINT ["./scripts/devcommands.sh"]
-USER vscode
 
 FROM base as prod-build
 
