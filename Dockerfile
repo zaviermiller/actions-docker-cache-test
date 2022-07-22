@@ -37,10 +37,8 @@ USER vscode
 
 # dependencies
 COPY --chown=vscode:vscode Gemfile* package.json ./
+
 # js packages less likely to change than gems
-# yarn packages get installed with asset:precompile
-# RUN yarn install && \
-#  yarn cache clean
 RUN bundle install && \
   bundle package && \
   find /app/vendor/bundle/ -name "*.c" -delete && \
@@ -53,27 +51,13 @@ RUN bundle exec rails assets:precompile && \
   yarn cache clean && \
   rm -rf node_modules && \
   # script to clean up the container a little
-  set -e; \
-  rm -rf admin;
+  set -e;
 
 # prep the bootsnap cache just for the hell of it
 RUN bundle exec bootsnap precompile --gemfile app/ lib/
 
 # copy over backend and admin
 CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
-
-
-FROM base as devcontainer
-
-# [Optional] Uncomment this section to install additional OS packages.
-# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-#   && apt-get -y install --no-install-recommends inotify-tools
-
-# Set up devcontainer
-COPY .devcontainer/devcommands.sh ./scripts/devcommands.sh
-RUN ["chmod", "+x", "./scripts/devcommands.sh"]
-ENTRYPOINT ["./scripts/devcommands.sh"]
-USER vscode
 
 FROM base as prod-build
 
@@ -95,13 +79,7 @@ WORKDIR /app
 # copy over dep files from context
 COPY Gemfile* package.json ./
 
-# should this match the BUNDLE_PATH?
 COPY --from=static --chown=rails:rails /app/vendor /app/vendor 
-COPY --from=base --chown=rails:rails /usr/local/bundle /usr/local/bundle  
-
-# install deps
-# RUN bundle install
-# && yarn install --check-files
 
 # install gems
 RUN bundle install && \
@@ -129,7 +107,7 @@ RUN addgroup --system --gid ${GID} ${GROUP} && adduser --system --uid ${UID} --i
 # install node
 RUN curl -sL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -\
   && apt-get update -qq && apt-get install -qq --no-install-recommends \
-  nodejs libvips postgresql-client libjemalloc2 \
+  nodejs libvips libjemalloc2 \
   && apt-get upgrade -qq \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* \ 
@@ -152,7 +130,6 @@ ENV APP_HOME='/app' \
 
 # copy over built gems and project
 COPY --from=prod-build --chown=rails:rails /app /app
-# COPY --from=prod-build /usr/local/bundle /usr/local/bundle
 
 WORKDIR /app
 
